@@ -1,11 +1,12 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QPushButton, QVBoxLayout, QLabel, QHBoxLayout, QTabWidget, QLineEdit
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QPixmap
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import matplotlib.pyplot as plt
 import random
 import time
+from queue import Queue
 
 # Map for switching matrix connection: HI, LOW and 16 SIGNALS corresponding to the 16 SiPMs on the board
 connection_map = {
@@ -31,29 +32,59 @@ connection_map = {
 } 
 
 class DataAcquisitionThread(QThread):
-    data_ready = pyqtSignal(int, int, int)  # Signal to send acquired data to the main thread
-
-    def __init__(self, min_voltage, max_voltage, voltage_step):
+    def __init__(self, min_voltage, max_voltage, voltage_step, queue):
         super().__init__()
         self.min_voltage = min_voltage
         self.max_voltage = max_voltage
         self.voltage_step = voltage_step
+        self.queue = queue
+        self.running = True  # Flag to control thread execution
+
+    def stop(self):
+        self.running = False  # Set the flag to False to stop the thread
+
+    def connect_to_sipm(self, sipm):
+        # Connect to the SiPM
+        print(f"Connecting to SiPM {sipm}")
+
+    def set_voltage(self, voltage):
+        # Set the voltage
+        print(f"Setting voltage to {voltage}V")
+
+    def measure_current(self):
+        # Measure the current
+        return random.randint(0, 1000)
+
+    def do_IV(self, sipm, min_voltage, max_voltage, voltage_step):
+        # Connect to the SiPM
+        self.connect_to_sipm(sipm)
+        # Loop over the voltages
+        for voltage in range(min_voltage, max_voltage, voltage_step):
+            # Set the voltage
+            self.set_voltage(voltage)
+            # Measure the current
+            current = self.measure_current()
+
+            # Add the data to the plot
+            self.queue.put((sipm, voltage, current))
+            time.sleep(0.1)
+            print(f"For SiPM {sipm}, Voltage: {voltage}V, Current: {current}nA")
+            if not self.running:
+                return  # Exit the method if running flag is set to False
 
     def run(self):
         min_voltage = int(self.min_voltage.text())
         max_voltage = int(self.max_voltage.text())
         voltage_step = int(self.voltage_step.text())
-        for i in range(16):            
-            for voltage in range(min_voltage, max_voltage, voltage_step):
-                current = random.randint(0, 1000)
-                self.data_ready.emit(i, voltage, current)  # Emit sipm_index, voltage, and current
-                time.sleep(0.1)
-                print(f"For SiPM {i+1}, Voltage: {voltage}V, Current: {current}nA")
-
+        for i in range(16):
+            self.do_IV(i, min_voltage, max_voltage, voltage_step)
+            if not self.running:
+                return  # Exit the run method if running flag is set to False
+            
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("N1081B Control for PAN TB")
+        self.setWindowTitle("CTA SiPM Matrix IV Measurement System")
         self.resize(1024, 768)
         
         self.central_widget = QWidget()
@@ -128,59 +159,57 @@ class MainWindow(QMainWindow):
         # Create a QTabWidget to hold the plots
         self.tab_widget2 = QTabWidget()
 
-        # Create a tab for 16 plots
+        # Initialize a list to hold the subplots
+        self.subplots = []
+
+        # Create tabs for each SiPM
         for i in range(16):
-            self.tab = QWidget()
-            self.tab_widget2.addTab(self.tab, f"Plot {i+1}")
+            tab = QWidget()
+            self.tab_widget2.addTab(tab, f"Plot {i+1}")
 
             # Create a layout for the plot
-            self.plot_layout = QVBoxLayout()
-            self.tab.setLayout(self.plot_layout)
+            plot_layout = QVBoxLayout(tab)
 
             # Create a figure and a canvas for Matplotlib plot
-            self.figure = plt.figure()
-            self.canvas = FigureCanvas(self.figure)
-            self.plot_layout.addWidget(self.canvas)
+            figure = plt.figure()
+            canvas = FigureCanvas(figure)
+            plot_layout.addWidget(canvas)
 
-            # Read the min and max voltage values
-            min_voltage = int(self.min_voltage.text())
-            max_voltage = int(self.max_voltage.text())
-            voltage_step = int(self.voltage_step.text())
-
-            # Add an empty scatter plot to the figure
-            ax = self.figure.add_subplot(111)
+            # Add the subplot to the list
+            ax = figure.add_subplot(111)
             ax.scatter([], [])
             ax.set_xlabel('Voltage (V)')
             ax.set_ylabel('Current (nA)')
-
-            # Set the x and y axis limits
-            ax.set_xlim(min_voltage, max_voltage)
-            ax.set_ylim(0, 1000)
-
-            # Draw the plot
-            self.canvas.draw()
+            ax.set_xlim(0, 100)  # Adjust the x-axis limits as needed
+            ax.set_ylim(0, 1000)  # Adjust the y-axis limits as needed
+            self.subplots.append(ax)
 
         self.layout.addWidget(self.tab_widget2)
 
-        self.data_thread = DataAcquisitionThread(self.min_voltage, self.max_voltage, self.voltage_step)  # Create an instance of the data acquisition thread
-        self.data_thread.data_ready.connect(self.update_plot)  # Connect signal to update_plot method
+        self.queue = Queue()
+        self.data_thread = DataAcquisitionThread(self.min_voltage, self.max_voltage, self.voltage_step, self.queue)
 
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_plot)
+        self.timer.start(100)  # Update plot every 100 milliseconds
+        
     def start_run(self):
         self.data_thread.start()  # Start the data acquisition thread
 
     def stop_run(self):
-        self.data_thread.quit()  # Stop the data acquisition thread
+        self.data_thread.stop()  # Stop the data acquisition thread
 
-    def update_plot(self, sipm_index, voltage, current):
-        # Get the corresponding subplot for the current SiPM
-        subplot_index = sipm_index  # Adjust for 0-based index
-        subplot = self.figure.add_subplot(4, 4, subplot_index + 1)
+    def update_plot(self):
+        while not self.queue.empty():
+            sipm_index, voltage, current = self.queue.get()
+            # Get the corresponding subplot for the current SiPM
+            subplot = self.subplots[sipm_index]
 
-        # Update the plot with the acquired data point
-        subplot.scatter(voltage, current, color='b')
+            # Update the plot with the acquired data point
+            subplot.scatter(voltage, current, color='b')
 
-        # Redraw the plot
-        self.canvas.draw()
+            # Redraw the plot
+            subplot.figure.canvas.draw()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
