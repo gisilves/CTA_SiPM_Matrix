@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import random
 import time
 from queue import Queue
+import os
 
 # Map for switching matrix connection: HI, LOW and 16 SIGNALS corresponding to the 16 SiPMs on the board
 connection_map = {
@@ -32,6 +33,9 @@ connection_map = {
 } 
 
 class DataAcquisitionThread(QThread):
+
+    cycle_finished = pyqtSignal(int)  # Signal to indicate the completion of a cycle
+
     def __init__(self, min_voltage, max_voltage, voltage_step, queue):
         super().__init__()
         self.min_voltage = min_voltage
@@ -74,6 +78,9 @@ class DataAcquisitionThread(QThread):
             print(f"For SiPM {sipm}, Voltage: {voltage}V, Current: {current}nA")
             if not self.running:
                 return  # Exit the method if running flag is set to False
+            
+        # Emit the cycle_finished signal after each cycle
+        self.cycle_finished.emit(sipm)
 
     def run(self):
         min_voltage = int(self.min_voltage.text())
@@ -192,6 +199,7 @@ class MainWindow(QMainWindow):
 
         self.queue = Queue()
         self.data_thread = DataAcquisitionThread(self.min_voltage, self.max_voltage, self.voltage_step, self.queue)
+        self.data_thread.cycle_finished.connect(self.save_plot)
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_plot)
@@ -222,6 +230,18 @@ class MainWindow(QMainWindow):
 
             # Redraw the plot
             subplot.figure.canvas.draw()
+
+    def save_plot(self, sipm_index):
+        if not os.path.exists("plots"):
+            os.makedirs("plots")
+
+        # Generate a filename based on the subplot index and current timestamp
+        filename = f"plots/plot_{sipm_index + 1}_{time.strftime('%Y%m%d%H%M%S')}.png"
+
+        # Save the plot as an image
+        self.subplots[sipm_index].figure.savefig(filename)
+
+        print(f"Plot {sipm_index + 1} saved as {filename}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
