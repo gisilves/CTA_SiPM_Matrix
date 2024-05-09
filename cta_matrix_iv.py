@@ -182,7 +182,7 @@ class DataAcquisitionThread(QThread):
         self.fine_voltage_scan = self.fine_voltage_scan_box.isChecked()
         self.check_start_voltage = self.check_start_voltage_box.isChecked()
         self.do_ramp_down = self.ramp_down.isChecked()
-    
+
         if self.fine_voltage_scan:
             v_fine_start = float(self.v_fine_start.text())
             v_fine_end = float(self.v_fine_end.text())
@@ -381,7 +381,7 @@ class MainWindow(QMainWindow):
         self.data_thread = DataAcquisitionThread(min_voltage=self.min_voltage, 
                                                 max_voltage=self.max_voltage, 
                                                 voltage_step=self.voltage_step, 
-                                                do_ramp_down=self.ramp_down,
+                                                ramp_down=self.ramp_down,
                                                 fine_voltage_scan=self.fine_voltage_scan_box, 
                                                 v_fine_start=self.v_fine_start, 
                                                 v_fine_end=self.v_fine_end, 
