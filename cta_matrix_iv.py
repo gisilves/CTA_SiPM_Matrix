@@ -37,12 +37,23 @@ class DataAcquisitionThread(QThread):
 
     cycle_finished = pyqtSignal(int)  # Signal to indicate the completion of a cycle
 
-    def __init__(self, min_voltage, max_voltage, voltage_step, queue, k2420, k707b):
+    def __init__(self, min_voltage, max_voltage, voltage_step, do_ramp_down, 
+                 fine_voltage_scan, v_fine_start, v_fine_end, v_fine_step, 
+                 start_voltage_check, compliance,
+                 queue, k2420, k707b):
         super().__init__()
         self.min_voltage = min_voltage
         self.max_voltage = max_voltage
         self.voltage_step = voltage_step
         self.queue = queue
+        self.start_voltage_check = start_voltage_check
+        self.compliance = compliance
+        self.fine_voltage_scan = fine_voltage_scan
+        self.v_fine_start = v_fine_start
+        self.v_fine_end = v_fine_end
+        self.v_fine_step = v_fine_step
+        self.do_ramp_down = do_ramp_down
+
         self.running = True  # Flag to control thread execution
         self.k2420 = k2420
         self.k707b = k707b        
@@ -367,7 +378,9 @@ class MainWindow(QMainWindow):
         self.init_instruments()
 
         self.queue = Queue()
-        self.data_thread = DataAcquisitionThread(self.min_voltage, self.max_voltage, self.voltage_step, self.queue, self.k2420, self.k707b)
+        self.data_thread = DataAcquisitionThread(self.min_voltage, self.max_voltage, self.voltage_step, self.ramp_down,
+                                                 self.fine_voltage_scan, self.v_fine_start, self.v_fine_end, self.v_fine_step,
+                                                 self.queue, self.k2420, self.k707b)
         self.data_thread.cycle_finished.connect(self.save_plot)
         self.data_thread.cycle_finished.connect(self.switch_tab)
 
