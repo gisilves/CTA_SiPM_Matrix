@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QPushButton, QVBoxLayout, QLabel, QHBoxLayout, QTabWidget, QLineEdit
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QPushButton, QVBoxLayout, QLabel, QHBoxLayout, QTabWidget, QLineEdit, QCheckBox
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QPixmap
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -218,8 +218,8 @@ class MainWindow(QMainWindow):
         # Add checkbox to enable the starting voltage check at start
         self.start_voltage_check_layout = QHBoxLayout()
         self.start_voltage_check_label = QLabel("Check starting voltage at start is 0V:")
-        self.start_voltage_check = QLineEdit()
-        self.start_voltage_check.setText("True")
+        self.start_voltage_check = QCheckBox()
+        self.start_voltage_check.setChecked(True)
         self.start_voltage_check_layout.addWidget(self.start_voltage_check_label)
         self.start_voltage_check_layout.addWidget(self.start_voltage_check)
         self.settings_layout.addLayout(self.start_voltage_check_layout)
@@ -227,19 +227,20 @@ class MainWindow(QMainWindow):
         # Add checkbox to enable the ramp down after each IV cycle
         self.ramp_down_layout = QHBoxLayout()
         self.ramp_down_label = QLabel("Ramp down after each IV cycle:")
-        self.ramp_down = QLineEdit()
-        self.ramp_down.setText("True")
+        self.ramp_down = QCheckBox()
+        self.ramp_down.setChecked(True)
         self.ramp_down_layout.addWidget(self.ramp_down_label)
         self.ramp_down_layout.addWidget(self.ramp_down)
         self.settings_layout.addLayout(self.ramp_down_layout)
-
+        
         # Add checkbox to enable the finer voltage scan
         self.fine_voltage_scan_layout = QHBoxLayout()
         self.fine_voltage_scan_label = QLabel("Fine voltage scan:")
-        self.fine_voltage_scan = QLineEdit()
-        self.fine_voltage_scan.setText("False")
+        self.fine_voltage_scan = QCheckBox()
+        self.fine_voltage_scan.setChecked(False)
         self.fine_voltage_scan_layout.addWidget(self.fine_voltage_scan_label)
         self.fine_voltage_scan_layout.addWidget(self.fine_voltage_scan)
+        self.settings_layout.addLayout(self.fine_voltage_scan_layout)
 
         self.v_fine_start_layout = QHBoxLayout()
         self.v_fine_start_label = QLabel("Fine Voltage Start (V):")
