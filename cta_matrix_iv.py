@@ -186,7 +186,7 @@ class DataAcquisitionThread(QThread):
             v_fine_end = float(self.v_fine_end.text())
             v_fine_step = float(self.v_fine_step.text())
 
-        check_start_voltage = self.start_voltage_check.isChecked()
+        check_start_voltage = self.start_voltage_check_box.isChecked()
         if check_start_voltage:
             # Check if sourcemeter is at 0V, otherwhise ramp down
             current_voltage =  float(self.k2420.query('SOUR:VOLT?').split(',')[0])
@@ -296,10 +296,10 @@ class MainWindow(QMainWindow):
         # Add checkbox to enable the starting voltage check at start
         self.start_voltage_check_layout = QHBoxLayout()
         self.start_voltage_check_label = QLabel("Check starting voltage at start is 0V:")
-        self.start_voltage_check = QCheckBox()
-        self.start_voltage_check.setChecked(True)
+        self.start_voltage_check_box = QCheckBox()
+        self.start_voltage_check_box.setChecked(True)
         self.start_voltage_check_layout.addWidget(self.start_voltage_check_label)
-        self.start_voltage_check_layout.addWidget(self.start_voltage_check)
+        self.start_voltage_check_layout.addWidget(self.start_voltage_check_box)
         self.settings_layout.addLayout(self.start_voltage_check_layout)
 
         # Add checkbox to enable the ramp down after each IV cycle
@@ -382,11 +382,11 @@ class MainWindow(QMainWindow):
                                                 max_voltage=self.max_voltage, 
                                                 voltage_step=self.voltage_step, 
                                                 do_ramp_down=self.ramp_down.isChecked(),
-                                                fine_voltage_scan=self.fine_voltage_scan.isChecked(), 
+                                                fine_voltage_scan=self.fine_voltage_scan_box.isChecked(), 
                                                 v_fine_start=self.v_fine_start, 
                                                 v_fine_end=self.v_fine_end, 
                                                 v_fine_step=self.v_fine_step, 
-                                                start_voltage_check=self.start_voltage_check.isChecked(), 
+                                                start_voltage_check=self.start_voltage_check_box.isChecked(), 
                                                 compliance=self.compliance, 
                                                 queue=self.queue, 
                                                 k2420=self.k2420, 
