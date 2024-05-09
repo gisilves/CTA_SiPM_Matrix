@@ -8,41 +8,45 @@ import random
 import time
 from queue import Queue
 import os
+import pyvisa as pv
 
 # Map for switching matrix connection: HI, LOW and 16 SIGNALS corresponding to the 16 SiPMs on the board
 connection_map = {
-    "HI": '1F',
-    "LOW": '1E',
-    "BIAS": '1F+01',
-    "SIGNAL1": '1E+02',
-    "SIGNAL2": '1E+03',
-    "SIGNAL3": '1E+04',
-    "SIGNAL4": '1E+05',
-    "SIGNAL5": '1E+06',
-    "SIGNAL6": '1E+07',
-    "SIGNAL7": '1E+08',
-    "SIGNAL8": '1E+09',
-    "SIGNAL9": '1E+10',
-    "SIGNAL10": '1E+11',
-    "SIGNAL11": '1E+12',
-    "SIGNAL12": '2E+01',
-    "SIGNAL13": '2E+02',
-    "SIGNAL14": '2E+03',
-    "SIGNAL15": '2E+04',
-    "SIGNAL16": '2E+05'
+    "HI": '1E',
+    "LOW": '1F',
+    "BIAS": '1E01',
+    "SIGNAL1": '1F02',
+    "SIGNAL2": '1F03',
+    "SIGNAL3": '1F04',
+    "SIGNAL4": '1F05',
+    "SIGNAL5": '1F06',
+    "SIGNAL6": '1F07',
+    "SIGNAL7": '1F08',
+    "SIGNAL8": '1F09',
+    "SIGNAL9": '1F10',
+    "SIGNAL10": '1F11',
+    "SIGNAL11": '1F12',
+    "SIGNAL12": '2F01',
+    "SIGNAL13": '2F02',
+    "SIGNAL14": '2F03',
+    "SIGNAL15": '2F04',
+    "SIGNAL16": '2F05'
 } 
 
 class DataAcquisitionThread(QThread):
 
     cycle_finished = pyqtSignal(int)  # Signal to indicate the completion of a cycle
 
-    def __init__(self, min_voltage, max_voltage, voltage_step, queue):
+    def __init__(self, min_voltage, max_voltage, voltage_step, queue, k2420, k707b):
         super().__init__()
         self.min_voltage = min_voltage
         self.max_voltage = max_voltage
         self.voltage_step = voltage_step
         self.queue = queue
         self.running = True  # Flag to control thread execution
+        self.k2420 = k2420
+        self.k707b = k707b        
+        self.k2420.write(':SOUR:VOLT:RANG 60')
 
     def stop(self):
         self.running = False
@@ -53,18 +57,26 @@ class DataAcquisitionThread(QThread):
     def connect_to_sipm(self, sipm):
         # Connect to the SiPM
         print(f"Connecting to SiPM {sipm}")
+        print('channel.close('+connection_map['SIGNAL'+str(sipm + 1)]+')')
+        self.k707b.write('channel.close(\''+connection_map['SIGNAL'+str(sipm + 1)]+'\')')
+        
+    def disconnect_from_sipm(self, sipm):
+        # Disconnect from the SiPM
+        print(f"Disconnecting from SiPM {sipm}")
+        self.k707b.write('channel.open(\''+connection_map['SIGNAL'+str(sipm + 1)]+'\')')
 
     def set_voltage(self, voltage):
         # Set the voltage
-        print(f"Setting voltage to {voltage}V")
+        self.k2420.write(':SOUR:VOLT '+str(voltage))
 
     def measure_current(self):
-        # Measure the current
-        return random.randint(0, 1000)
-
+        # Measure the current    
+        return float(self.k2420.query('MEAS:CURR?').split(',')[1])
+    
     def do_IV(self, sipm, min_voltage, max_voltage, voltage_step):
         # Connect to the SiPM
         self.connect_to_sipm(sipm)
+        
         # Loop over the voltages
         for voltage in range(min_voltage, max_voltage, voltage_step):
             # Set the voltage
@@ -81,11 +93,38 @@ class DataAcquisitionThread(QThread):
             
         # Emit the cycle_finished signal after each cycle
         self.cycle_finished.emit(sipm)
+        
+        # Check if sourcemeter is at 0V, otherwhise ramp down
+        current_voltage =  float(self.k2420.query('SOUR:VOLT?').split(',')[0])
+        if current_voltage > 0:
+            print('Ramping down...')
+            while current_voltage > 0:
+                current_voltage -= 1
+                if current_voltage < 0:
+                    current_voltage = 0 # Make sure we don't go negative voltages while ramping down
+                self.k2420.write('SOUR:VOLT ' + str(current_voltage))
+                time.sleep(1)
+                
+        self.disconnect_from_sipm(sipm)
 
     def run(self):
         min_voltage = int(self.min_voltage.text())
         max_voltage = int(self.max_voltage.text())
         voltage_step = int(self.voltage_step.text())
+        
+        # Check if sourcemeter is at 0V, otherwhise ramp down
+        current_voltage =  float(self.k2420.query('SOUR:VOLT?').split(',')[0])
+        if current_voltage > 0:
+            print('Current voltage is not 0V: ramping down...')
+            while current_voltage > 0:
+                current_voltage -= 1
+                if current_voltage < 0:
+                    current_voltage = 0 # Make sure we don't go negative voltages while ramping down
+                self.k2420.write('SOUR:VOLT ' + str(current_voltage))
+                time.sleep(1)
+                
+        self.k2420.write('OUTP ON')
+        
         for i in range(16):
             self.do_IV(i, min_voltage, max_voltage, voltage_step)
             if not self.running:
@@ -154,7 +193,7 @@ class MainWindow(QMainWindow):
         self.max_voltage_layout = QHBoxLayout()
         self.max_voltage_label = QLabel("Max Voltage (V):")
         self.max_voltage = QLineEdit()
-        self.max_voltage.setText("100")
+        self.max_voltage.setText("40")
         self.max_voltage_layout.addWidget(self.max_voltage_label)
         self.max_voltage_layout.addWidget(self.max_voltage)
         self.settings_layout.addLayout(self.max_voltage_layout)
@@ -197,13 +236,29 @@ class MainWindow(QMainWindow):
 
         self.layout.addWidget(self.tab_widget2)
 
+        # Init instruments
+        self.init_instruments()
+
         self.queue = Queue()
-        self.data_thread = DataAcquisitionThread(self.min_voltage, self.max_voltage, self.voltage_step, self.queue)
+        self.data_thread = DataAcquisitionThread(self.min_voltage, self.max_voltage, self.voltage_step, self.queue, self.k2420, self.k707b)
         self.data_thread.cycle_finished.connect(self.save_plot)
+        self.data_thread.cycle_finished.connect(self.switch_tab)
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_plot)
         self.timer.start(100)  # Update plot every 100 milliseconds
+                
+    def init_instruments(self):
+        try:
+            self.rm = pv.ResourceManager()
+            self.k2420 = self.rm.open_resource('GPIB0::11::INSTR') # Keithley 2420 Sourcemeter
+            print(self.k2420.query('*IDN?'))
+    
+            self.k707b = self.rm.open_resource('GPIB0::16::INSTR') # Keithley 707B Switching Matrix
+            print(self.k707b.query('*IDN?')) 
+        except:
+            print("Error: could not connect to instruments")
+            sys.exit()
         
     def start_run(self):
         # Clear the plot points
@@ -242,6 +297,12 @@ class MainWindow(QMainWindow):
         self.subplots[sipm_index].figure.savefig(filename)
 
         print(f"Plot {sipm_index + 1} saved as {filename}")
+        
+    def switch_tab(self):
+        # Switch to next plot tab
+        current_tab_index = self.tab_widget2.currentIndex()
+        next_tab_index = (current_tab_index + 1) % self.tab_widget2.count()
+        self.tab_widget2.setCurrentIndex(next_tab_index)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
