@@ -179,15 +179,13 @@ class DataAcquisitionThread(QThread):
         min_voltage = int(self.min_voltage.text())
         max_voltage = int(self.max_voltage.text())
         voltage_step = int(self.voltage_step.text())
-
-        fine_voltage_scan = self.fine_voltage_scan_box.isChecked()
-        if fine_voltage_scan:
+    
+        if self.fine_voltage_scan:
             v_fine_start = float(self.v_fine_start.text())
             v_fine_end = float(self.v_fine_end.text())
             v_fine_step = float(self.v_fine_step.text())
 
-        check_start_voltage = self.start_voltage_check_box.isChecked()
-        if check_start_voltage:
+        if self.check_start_voltage:
             # Check if sourcemeter is at 0V, otherwhise ramp down
             current_voltage =  float(self.k2420.query('SOUR:VOLT?').split(',')[0])
             if current_voltage > 0:
@@ -201,12 +199,11 @@ class DataAcquisitionThread(QThread):
                 
         self.k2420.write('OUTP ON')
 
-        do_ramp_down = self.ramp_down.isChecked()
-        
-        for i in range(16):
-            self.do_IV(i, min_voltage, max_voltage, voltage_step, do_ramp_down, fine_voltage_scan, v_fine_start = 0, v_fine_end = 0, v_fine_step = 0.1)
-            if not self.running:
-                return  # Exit the run method if running flag is set to False
+        if self.do_ramp_down:       
+            for i in range(16):
+                self.do_IV(i, min_voltage, max_voltage, voltage_step, self.do_ramp_down, self.fine_voltage_scan, v_fine_start = 0, v_fine_end = 0, v_fine_step = 0.1)
+                if not self.running:
+                    return  # Exit the run method if running flag is set to False
             
 
 class MainWindow(QMainWindow):
