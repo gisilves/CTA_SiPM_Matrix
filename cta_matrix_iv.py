@@ -41,7 +41,10 @@ class DataAcquisitionThread(QThread):
         self.running = True  # Flag to control thread execution
 
     def stop(self):
-        self.running = False  # Set the flag to False to stop the thread
+        self.running = False
+
+    def reset(self):
+        self.running = True
 
     def connect_to_sipm(self, sipm):
         # Connect to the SiPM
@@ -67,7 +70,7 @@ class DataAcquisitionThread(QThread):
 
             # Add the data to the plot
             self.queue.put((sipm, voltage, current))
-            time.sleep(0.1)
+            time.sleep(1)
             print(f"For SiPM {sipm}, Voltage: {voltage}V, Current: {current}nA")
             if not self.running:
                 return  # Exit the method if running flag is set to False
@@ -80,7 +83,6 @@ class DataAcquisitionThread(QThread):
             self.do_IV(i, min_voltage, max_voltage, voltage_step)
             if not self.running:
                 return  # Exit the run method if running flag is set to False
-            
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -194,6 +196,11 @@ class MainWindow(QMainWindow):
         self.timer.start(100)  # Update plot every 100 milliseconds
         
     def start_run(self):
+        # Clear the plots
+        for subplot in self.subplots:
+            subplot.clear()
+
+        self.data_thread.reset()  # Reset the thread's state
         self.data_thread.start()  # Start the data acquisition thread
 
     def stop_run(self):
