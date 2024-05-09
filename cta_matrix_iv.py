@@ -46,9 +46,9 @@ class DataAcquisitionThread(QThread):
         self.max_voltage = max_voltage
         self.voltage_step = voltage_step
         self.queue = queue
-        self.check_start_voltage = check_start_voltage
+        self.check_start_voltage_box = check_start_voltage
         self.compliance = compliance
-        self.fine_voltage_scan = fine_voltage_scan
+        self.fine_voltage_scan_box = fine_voltage_scan
         self.v_fine_start = v_fine_start
         self.v_fine_end = v_fine_end
         self.v_fine_step = v_fine_step
@@ -179,6 +179,9 @@ class DataAcquisitionThread(QThread):
         min_voltage = int(self.min_voltage.text())
         max_voltage = int(self.max_voltage.text())
         voltage_step = int(self.voltage_step.text())
+        self.fine_voltage_scan = self.fine_voltage_scan_box.isChecked()
+        self.check_start_voltage = self.check_start_voltage_box.isChecked()
+        self.do_ramp_down = self.ramp_down.isChecked()
     
         if self.fine_voltage_scan:
             v_fine_start = float(self.v_fine_start.text())
@@ -378,12 +381,12 @@ class MainWindow(QMainWindow):
         self.data_thread = DataAcquisitionThread(min_voltage=self.min_voltage, 
                                                 max_voltage=self.max_voltage, 
                                                 voltage_step=self.voltage_step, 
-                                                do_ramp_down=self.ramp_down.isChecked(),
-                                                fine_voltage_scan=self.fine_voltage_scan_box.isChecked(), 
+                                                do_ramp_down=self.ramp_down,
+                                                fine_voltage_scan=self.fine_voltage_scan_box, 
                                                 v_fine_start=self.v_fine_start, 
                                                 v_fine_end=self.v_fine_end, 
                                                 v_fine_step=self.v_fine_step, 
-                                                check_start_voltage=self.start_voltage_check_box.isChecked(), 
+                                                check_start_voltage=self.start_voltage_check_box, 
                                                 compliance=self.compliance, 
                                                 queue=self.queue, 
                                                 k2420=self.k2420, 
