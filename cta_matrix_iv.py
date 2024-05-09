@@ -378,9 +378,19 @@ class MainWindow(QMainWindow):
         self.init_instruments()
 
         self.queue = Queue()
-        self.data_thread = DataAcquisitionThread(self.min_voltage, self.max_voltage, self.voltage_step, self.ramp_down,
-                                                 self.fine_voltage_scan, self.v_fine_start, self.v_fine_end, self.v_fine_step,
-                                                 self.queue, self.k2420, self.k707b)
+        self.data_thread = DataAcquisitionThread(min_voltage=self.min_voltage, 
+                                                max_voltage=self.max_voltage, 
+                                                voltage_step=self.voltage_step, 
+                                                do_ramp_down=self.ramp_down.isChecked(),
+                                                fine_voltage_scan=self.fine_voltage_scan.isChecked(), 
+                                                v_fine_start=self.v_fine_start, 
+                                                v_fine_end=self.v_fine_end, 
+                                                v_fine_step=self.v_fine_step, 
+                                                start_voltage_check=self.start_voltage_check.isChecked(), 
+                                                compliance=self.compliance, 
+                                                queue=self.queue, 
+                                                k2420=self.k2420, 
+                                                k707b=self.k707b)
         self.data_thread.cycle_finished.connect(self.save_plot)
         self.data_thread.cycle_finished.connect(self.switch_tab)
 
