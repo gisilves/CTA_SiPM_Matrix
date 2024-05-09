@@ -83,6 +83,8 @@ class DataAcquisitionThread(QThread):
             self.do_IV(i, min_voltage, max_voltage, voltage_step)
             if not self.running:
                 return  # Exit the run method if running flag is set to False
+            
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -196,9 +198,12 @@ class MainWindow(QMainWindow):
         self.timer.start(100)  # Update plot every 100 milliseconds
         
     def start_run(self):
-        # Clear the plots
+        # Clear the plot points
         for subplot in self.subplots:
             subplot.clear()
+            subplot.set_xlabel('Voltage (V)')
+            subplot.set_ylabel('Current (nA)')
+            subplot.set_xlim(0, 100)
 
         self.data_thread.reset()  # Reset the thread's state
         self.data_thread.start()  # Start the data acquisition thread
