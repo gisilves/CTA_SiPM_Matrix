@@ -206,6 +206,38 @@ class MainWindow(QMainWindow):
         self.voltage_step_layout.addWidget(self.voltage_step)
         self.settings_layout.addLayout(self.voltage_step_layout)
 
+        self.compliance_layout = QHBoxLayout()
+        self.compliance_label = QLabel("Compliance (A):")
+        self.compliance = QLineEdit()
+        self.compliance.setText("1e-6")
+        self.compliance_layout.addWidget(self.compliance_label)
+        self.compliance_layout.addWidget(self.compliance)
+        self.settings_layout.addLayout(self.compliance_layout)
+
+        self.v_fine_start_layout = QHBoxLayout()
+        self.v_fine_start_label = QLabel("Fine Voltage Start (V):")
+        self.v_fine_start = QLineEdit()
+        self.v_fine_start.setText("-1")
+        self.v_fine_start_layout.addWidget(self.v_fine_start_label)
+        self.v_fine_start_layout.addWidget(self.v_fine_start)
+        self.settings_layout.addLayout(self.v_fine_start_layout)
+
+        self.v_fine_end_layout = QHBoxLayout()
+        self.v_fine_end_label = QLabel("Fine Voltage End (V):")
+        self.v_fine_end = QLineEdit()
+        self.v_fine_end.setText("-1")
+        self.v_fine_end_layout.addWidget(self.v_fine_end_label)
+        self.v_fine_end_layout.addWidget(self.v_fine_end)
+        self.settings_layout.addLayout(self.v_fine_end_layout)
+
+        self.v_fine_step_layout = QHBoxLayout()
+        self.v_fine_step_label = QLabel("Fine Voltage Step (V):")
+        self.v_fine_step = QLineEdit()
+        self.v_fine_step.setText("0.1")
+        self.v_fine_step_layout.addWidget(self.v_fine_step_label)
+        self.v_fine_step_layout.addWidget(self.v_fine_step)
+        self.settings_layout.addLayout(self.v_fine_step_layout)
+
         # Create a QTabWidget to hold the plots
         self.tab_widget2 = QTabWidget()
 
