@@ -73,60 +73,127 @@ class DataAcquisitionThread(QThread):
         # Measure the current    
         return float(self.k2420.query('MEAS:CURR?').split(',')[1])
     
-    def do_IV(self, sipm, min_voltage, max_voltage, voltage_step):
+    def do_IV(self, sipm, min_voltage, max_voltage, voltage_step, do_ramp_down, fine_voltage_scan, v_fine_start, v_fine_end, v_fine_step):
         # Connect to the SiPM
         self.connect_to_sipm(sipm)
-        
-        # Loop over the voltages
-        for voltage in range(min_voltage, max_voltage, voltage_step):
-            # Set the voltage
-            self.set_voltage(voltage)
-            # Measure the current
-            current = self.measure_current()
 
-            # Add the data to the plot
-            self.queue.put((sipm, voltage, current))
-            time.sleep(1)
-            print(f"For SiPM {sipm}, Voltage: {voltage}V, Current: {current}nA")
-            if not self.running:
-                return  # Exit the method if running flag is set to False
+        # Check if min_voltage is less than max_voltage
+        if min_voltage > max_voltage:
+            print('Min voltage greater than max voltage')
+            return
+
+        if fine_voltage_scan:
+            # Check if v_fine_start is less than v_fine_end
+            if v_fine_start > v_fine_end:
+                print('Fine voltage scan start greater than fine voltage scan end')
+                return
             
+            # Check if fine voltage scan is contained within the min and max voltage range
+            if v_fine_start < min_voltage or v_fine_start > max_voltage:
+                print('Fine voltage scan start not within min and max voltage range')
+                return
+        
+        if not fine_voltage_scan:
+            # Loop over the voltages
+            for voltage in range(min_voltage, max_voltage, voltage_step):
+                # Set the voltage
+                self.set_voltage(voltage)
+                # Measure the current
+                current = self.measure_current()
+
+                # Add the data to the plot
+                self.queue.put((sipm, voltage, current))
+                time.sleep(1)
+                print(f"For SiPM {sipm}, Voltage: {voltage}V, Current: {current}nA")
+                if not self.running:
+                    return  # Exit the method if running flag is set to False
+        else:
+            # Loop over voltages with normal step up to v_fine_start, then fine step up to v_fine_end, then normal step up to max_voltage
+            for voltage in range(min_voltage, v_fine_start, voltage_step):
+                # Set the voltage
+                self.set_voltage(voltage)
+                # Measure the current
+                current = self.measure_current()
+
+                # Add the data to the plot
+                self.queue.put((sipm, voltage, current))
+                time.sleep(1)
+                print(f"For SiPM {sipm}, Voltage: {voltage}V, Current: {current}nA")
+                if not self.running:
+                    return
+                
+            for voltage in range(v_fine_start, v_fine_end, v_fine_step):
+                # Set the voltage
+                self.set_voltage(voltage)
+                # Measure the current
+                current = self.measure_current()
+
+                # Add the data to the plot
+                self.queue.put((sipm, voltage, current))
+                time.sleep(1)
+                print(f"For SiPM {sipm}, Voltage: {voltage}V, Current: {current}nA")
+                if not self.running:
+                    return
+                
+            for voltage in range(v_fine_end, max_voltage, voltage_step):
+                # Set the voltage
+                self.set_voltage(voltage)
+                # Measure the current
+                current = self.measure_current()
+
+                # Add the data to the plot
+                self.queue.put((sipm, voltage, current))
+                time.sleep(1)
+                print(f"For SiPM {sipm}, Voltage: {voltage}V, Current: {current}nA")
+                if not self.running:
+                    return
+                
+        if do_ramp_down:
+            # Ramp down to 0V
+            current_voltage =  float(self.k2420.query('SOUR:VOLT?').split(',')[0])
+            if current_voltage > 0:
+                print('Ramping down...')
+                while current_voltage > 0:
+                    current_voltage -= 1
+                    if current_voltage < 0:
+                        current_voltage = 0 # Make sure we don't go negative voltages while ramping down
+                    self.k2420.write('SOUR:VOLT ' + str(current_voltage))
+                    time.sleep(1)
+       
         # Emit the cycle_finished signal after each cycle
         self.cycle_finished.emit(sipm)
-        
-        # Check if sourcemeter is at 0V, otherwhise ramp down
-        current_voltage =  float(self.k2420.query('SOUR:VOLT?').split(',')[0])
-        if current_voltage > 0:
-            print('Ramping down...')
-            while current_voltage > 0:
-                current_voltage -= 1
-                if current_voltage < 0:
-                    current_voltage = 0 # Make sure we don't go negative voltages while ramping down
-                self.k2420.write('SOUR:VOLT ' + str(current_voltage))
-                time.sleep(1)
-                
         self.disconnect_from_sipm(sipm)
 
     def run(self):
         min_voltage = int(self.min_voltage.text())
         max_voltage = int(self.max_voltage.text())
         voltage_step = int(self.voltage_step.text())
-        
-        # Check if sourcemeter is at 0V, otherwhise ramp down
-        current_voltage =  float(self.k2420.query('SOUR:VOLT?').split(',')[0])
-        if current_voltage > 0:
-            print('Current voltage is not 0V: ramping down...')
-            while current_voltage > 0:
-                current_voltage -= 1
-                if current_voltage < 0:
-                    current_voltage = 0 # Make sure we don't go negative voltages while ramping down
-                self.k2420.write('SOUR:VOLT ' + str(current_voltage))
-                time.sleep(1)
+
+        fine_voltage_scan = self.fine_voltage_scan.isChecked()
+        if fine_voltage_scan:
+            v_fine_start = float(self.v_fine_start.text())
+            v_fine_end = float(self.v_fine_end.text())
+            v_fine_step = float(self.v_fine_step.text())
+
+        check_start_voltage = self.start_voltage_check.isChecked()
+        if check_start_voltage:
+            # Check if sourcemeter is at 0V, otherwhise ramp down
+            current_voltage =  float(self.k2420.query('SOUR:VOLT?').split(',')[0])
+            if current_voltage > 0:
+                print('Current voltage is not 0V: ramping down...')
+                while current_voltage > 0:
+                    current_voltage -= 1
+                    if current_voltage < 0:
+                        current_voltage = 0 # Make sure we don't go negative voltages while ramping down
+                    self.k2420.write('SOUR:VOLT ' + str(current_voltage))
+                    time.sleep(1)
                 
         self.k2420.write('OUTP ON')
+
+        do_ramp_down = self.ramp_down.isChecked()
         
         for i in range(16):
-            self.do_IV(i, min_voltage, max_voltage, voltage_step)
+            self.do_IV(i, min_voltage, max_voltage, voltage_step, do_ramp_down, fine_voltage_scan, v_fine_start = 0, v_fine_end = 0, v_fine_step = 0.1)
             if not self.running:
                 return  # Exit the run method if running flag is set to False
             
@@ -326,7 +393,6 @@ class MainWindow(QMainWindow):
             subplot.clear()
             subplot.set_xlabel('Voltage (V)')
             subplot.set_ylabel('Current (nA)')
-            subplot.set_xlim(0, 100)
 
         self.data_thread.reset()  # Reset the thread's state
         self.data_thread.start()  # Start the data acquisition thread
