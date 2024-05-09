@@ -39,14 +39,14 @@ class DataAcquisitionThread(QThread):
 
     def __init__(self, min_voltage, max_voltage, voltage_step, do_ramp_down, 
                  fine_voltage_scan, v_fine_start, v_fine_end, v_fine_step, 
-                 start_voltage_check, compliance,
+                 check_start_voltage, compliance,
                  queue, k2420, k707b):
         super().__init__()
         self.min_voltage = min_voltage
         self.max_voltage = max_voltage
         self.voltage_step = voltage_step
         self.queue = queue
-        self.start_voltage_check = start_voltage_check
+        self.check_start_voltage = check_start_voltage
         self.compliance = compliance
         self.fine_voltage_scan = fine_voltage_scan
         self.v_fine_start = v_fine_start
@@ -383,7 +383,7 @@ class MainWindow(QMainWindow):
                                                 v_fine_start=self.v_fine_start, 
                                                 v_fine_end=self.v_fine_end, 
                                                 v_fine_step=self.v_fine_step, 
-                                                start_voltage_check=self.start_voltage_check_box.isChecked(), 
+                                                check_start_voltage=self.start_voltage_check_box.isChecked(), 
                                                 compliance=self.compliance, 
                                                 queue=self.queue, 
                                                 k2420=self.k2420, 
