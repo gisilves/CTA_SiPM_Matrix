@@ -180,7 +180,7 @@ class DataAcquisitionThread(QThread):
         max_voltage = int(self.max_voltage.text())
         voltage_step = int(self.voltage_step.text())
 
-        fine_voltage_scan = self.fine_voltage_scan.isChecked()
+        fine_voltage_scan = self.fine_voltage_scan_box.isChecked()
         if fine_voltage_scan:
             v_fine_start = float(self.v_fine_start.text())
             v_fine_end = float(self.v_fine_end.text())
@@ -314,10 +314,10 @@ class MainWindow(QMainWindow):
         # Add checkbox to enable the finer voltage scan
         self.fine_voltage_scan_layout = QHBoxLayout()
         self.fine_voltage_scan_label = QLabel("Fine voltage scan:")
-        self.fine_voltage_scan = QCheckBox()
-        self.fine_voltage_scan.setChecked(False)
+        self.fine_voltage_scan_box = QCheckBox()
+        self.fine_voltage_scan_box.setChecked(False)
         self.fine_voltage_scan_layout.addWidget(self.fine_voltage_scan_label)
-        self.fine_voltage_scan_layout.addWidget(self.fine_voltage_scan)
+        self.fine_voltage_scan_layout.addWidget(self.fine_voltage_scan_box)
         self.settings_layout.addLayout(self.fine_voltage_scan_layout)
 
         self.v_fine_start_layout = QHBoxLayout()
