@@ -3,5 +3,5 @@ qt-ledwidget
 matplotlib
 pyvisa
 numpy
-playsound
+playsound==1.2.2
 argparse
