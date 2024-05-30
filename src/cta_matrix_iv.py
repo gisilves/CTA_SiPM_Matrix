@@ -1025,8 +1025,11 @@ class MainWindow(QMainWindow):
         self.subplots[-1].figure.savefig(filename)
         print(f"Data for All SiPMs saved as {filename}")
         
-        self.stop_run()
-        playsound.playsound('voice.mp3')
+        self.stop_run()ù
+        try:
+            playsound.playsound('voice.mp3')
+        except:
+            print('Could not play sound')
         
     def switch_plot_tab(self, sipm):
         # Switch to the tab corresponding to the current SiPM
