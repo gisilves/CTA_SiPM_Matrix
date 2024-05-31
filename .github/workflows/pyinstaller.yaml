@@ -2,39 +2,51 @@ name: Package Application with Pyinstaller
 
 on:
   push:
-    branches: [ pyinstaller_tests ]
+    branches: 
+      - pyinstaller_tests
 
 jobs:
   build:
-
     if: contains(github.event.head_commit.message, 'Release')
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
 
     steps:
-    - uses: actions/checkout@v2
+      - name: Use Node.js 16
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
 
-    - name: Package Application
-      uses: JackMcKew/pyinstaller-action-windows@main
-      with:
-        path: src
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Create Release
-      id: create_release  
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.MY_PAT }}
-      with:
-        tag_name: ${{ github.event.head_commit.message }}
-        release_name: ${{ github.event.head_commit.message }}
-        draft: false
-        prerelease: false
+      - name: Set Release Tag
+        run: echo "RELEASE_TAG=$(echo ${GITHUB_SHA::5})" >> $GITHUB_ENV
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.MY_PAT }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: src/dist/windows/cta_matrix_iv.exe  # Adjust this if needed
-        asset_name: cta_matrix_iv.exe  # Adjust this if needed
-        asset_content_type: application/octet-stream
+      - name: Package Application
+        uses: JackMcKew/pyinstaller-action-windows@main
+        with:
+          path: src
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.MY_PAT }}
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          release_name: ${{ env.RELEASE_TAG }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.MY_PAT }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: src/dist/windows/cta_matrix_iv.exe
+          asset_name: cta_matrix_iv.exe
+          asset_content_type: application/octet-stream
