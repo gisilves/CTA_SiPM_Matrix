@@ -42,6 +42,14 @@ jobs:
 
       - name: Copy README.md to temp directory
         run: cp README.md application/README.md
+
+      - name: Install Chocolatey
+        run: |
+        Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+      - name: Add Chocolatey to PATH
+        run: |
+        $env:PATH += ";C:\ProgramData\chocolatey\bin"
         
       - name: Package application into Windows installer
         run: |
