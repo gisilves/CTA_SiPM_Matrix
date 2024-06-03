@@ -54,12 +54,14 @@ connection_map = {
     "SIGNAL16": '2F05'
 } 
 
-class DataAcquisitionThread(QThread):
+from PyQt5.QtCore import QThread, pyqtSignal
+import numpy as np
+import time
 
-    current_sipm = pyqtSignal(int) # Signal to indicate current SiPM being measured 
-    all_finished = pyqtSignal(int) # Signal at the end of the acquisition
-    global running
-    
+class DataAcquisitionThread(QThread):
+    current_sipm = pyqtSignal(int)  # Signal to indicate current SiPM being measured
+    all_finished = pyqtSignal(int)  # Signal at the end of the acquisition
+
     def __init__(self, min_voltage, max_voltage, voltage_step, ramp_down, 
                  fine_voltage_scan, v_fine_start, v_fine_end, v_fine_step, 
                  check_start_voltage, compliance, check_compliance,
@@ -84,8 +86,8 @@ class DataAcquisitionThread(QThread):
         self.k2420.write(':SOUR:VOLT:RANG 60')
         
         print('Connected to SourceMeter:' + self.k2420.query('*IDN?'))
-        print('Connected to Switching Matrix:' + self.k707.query('*IDN?')) # NOTE: prints correctly on 707A but gives IDDCO error on switching matrix display    
-        
+        print('Connected to Switching Matrix:' + self.k707.query('*IDN?'))
+
     def stop(self):
         global running
         running = False
@@ -97,182 +99,67 @@ class DataAcquisitionThread(QThread):
         running = True
 
     def connect_bias(self):
-       # Open Bias line
-       print("Connecting Bias")
-       self.k707.write('Y2E0CE001X')
+        print("Connecting Bias")
+        self.k707.write('Y2E0CE001X')
     
     def connect_to_sipm(self, sipm):
-        # Connect to the SiPM
         print(f"Connecting to SiPM {sipm + 1}")
         self.current_sipm.emit(sipm)
-        self.k707.write('Y3E0CF' + str(sipm+2) + 'X')
+        self.k707.write(f'Y3E0CF{sipm + 2}X')
     
     def disconnect_from_sipm(self, sipm):
-        # Disconnect from the SiPM
         print(f"Disconnecting from SiPM {sipm + 1}")
-        self.k707.write('Y3E0NF' + str(sipm+2) + 'X')
+        self.k707.write(f'Y3E0NF{sipm + 2}X')
          
     def disconnect_all(self):
-        # Open all SiPM channels
         print("Disconnecting all SiPMs")
         self.k707.write('Y2E0RX')
 
     def set_voltage(self, voltage):
-        # Set the voltage
-        self.k2420.write(':SOUR:VOLT '+str(voltage))
+        self.k2420.write(f':SOUR:VOLT {voltage}')
 
     def measure_current(self):
-        # Measure the current    
         return float(self.k2420.query('MEAS:CURR?').split(',')[1])
     
     def is_compliance(self):
-       # Check if the Source Meter hit compliance current level
-       tripped = int(self.k2420.query(':SENSE:CURRENT:PROTECTION:TRIPPED?')[0])
-       
-       return tripped
+        return int(self.k2420.query(':SENSE:CURRENT:PROTECTION:TRIPPED?')[0])
    
     def do_ramp_down(self):
         ramp_step = int(self.ramp_down_step.text())
-        # Ramp down to 0V
-        current_voltage =  float(self.k2420.query('SOUR:VOLT?').split(',')[0])
-        if current_voltage > 0:
-            print('Ramping down...')
-            while current_voltage > 0:
-                current_voltage -= ramp_step
-                if current_voltage < 0:
-                    current_voltage = 0 # Make sure we don't go negative voltages while ramping down
-                self.k2420.write('SOUR:VOLT ' + str(current_voltage))
-                time.sleep(1)
+        current_voltage = float(self.k2420.query('SOUR:VOLT?').split(',')[0])
+        while current_voltage > 0:
+            current_voltage = max(0, current_voltage - ramp_step)
+            self.k2420.write(f'SOUR:VOLT {current_voltage}')
+            time.sleep(1)
 
-    def do_IV(self, sipm, min_voltage, max_voltage, voltage_step, do_ramp_down, fine_voltage_scan, v_fine_start, v_fine_end, v_fine_step):
-        # Connect to the SiPM
-        self.connect_to_sipm(sipm)
-       
+    def perform_measurement(self, sipm, voltage_points):
         n_measurements = 6
         stabilization_time = 0.2
 
-        if not fine_voltage_scan:
-            current_point = min_voltage
-            while current_point <= max_voltage:
-                # Set the voltage
-                self.set_voltage(current_point)
-                time.sleep(stabilization_time)
-                
-                all_currents = []              
-                # Measure the mean current
-                for measure in range(n_measurements):
-                    all_currents.append(self.measure_current())
-                    
-                mean_current = np.asarray(all_currents).mean()
-                rms_current = np.asarray(all_currents).std()
-                
-                if self.check_compliance:
-                    # Check compliance and skip to next channel if it tripped
-                    if self.is_compliance():
-                        self.set_voltage(0)
-                        time.sleep(stabilization_time)
-                        break
-                    
-                # Add the data to the plot
-                self.queue.put((sipm, current_point, mean_current, rms_current))
-                print(f"For SiPM {sipm + 1}, Voltage: {current_point}V, Mean Current: {mean_current} A, mean/rms: {mean_current/rms_current})")
-                if not running:
-                    return  # Exit the method if running flag is set to False
-                current_point += voltage_step
-        else:
-            # Loop over voltages with normal step up to v_fine_start
-            current_point = min_voltage
-            while current_point < v_fine_start:
-                # Set the voltage
-                self.set_voltage(current_point)
-                time.sleep(stabilization_time)
-                
-                all_currents = []              
-                # Measure the mean current
-                for measure in range(n_measurements):
-                    all_currents.append(self.measure_current())
-                    
-                mean_current = np.asarray(all_currents).mean()
-                rms_current = np.asarray(all_currents).std()
-                
-                if self.check_compliance:
-                    # Check compliance and skip to next channel if it tripped
-                    if self.is_compliance():
-                        self.set_voltage(0)
-                        time.sleep(stabilization_time)
-                        break
-                    
-                # Add the data to the plot
-                self.queue.put((sipm, current_point, mean_current, rms_current))
-                print(f"For SiPM {sipm + 1}, Voltage: {current_point}V, Mean Current: {mean_current} A, mean/rms: {mean_current/rms_current})")
-                if not running:
-                    return
-                current_point += voltage_step
+        self.connect_to_sipm(sipm)
+        for voltage in voltage_points:
+            self.set_voltage(voltage)
+            time.sleep(stabilization_time)
             
-            # Loop over voltages with fine step from v_fine_start to v_fine_end
-            current_point = v_fine_start
-            while current_point < v_fine_end:
-                # Set the voltage
-                self.set_voltage(current_point)
+            all_currents = [self.measure_current() for _ in range(n_measurements)]
+            mean_current = np.mean(all_currents)
+            rms_current = np.std(all_currents)
+            
+            if self.check_compliance and self.is_compliance():
+                self.set_voltage(0)
                 time.sleep(stabilization_time)
+                break
                 
-                all_currents = []              
-                # Measure the mean current
-                for measure in range(n_measurements):
-                    all_currents.append(self.measure_current())
-                    
-                mean_current = np.asarray(all_currents).mean()
-                rms_current = np.asarray(all_currents).std()
-                
-                if self.check_compliance:
-                    # Check compliance and skip to next channel if it tripped
-                    if self.is_compliance():
-                        self.set_voltage(0)
-                        time.sleep(stabilization_time)
-                        break
-                    
-                # Add the data to the plot
-                self.queue.put((sipm, current_point, mean_current, rms_current))
-                print(f"For SiPM {sipm + 1}, Voltage: {current_point}V, Mean Current: {mean_current} A, mean/rms: {mean_current/rms_current})")
-                if not running:
-                    return
-                current_point += v_fine_step
-
-            # Loop over voltages with normal step from v_fine_end to max_voltage
-            current_point = v_fine_end
-            while current_point <= max_voltage:
-                # Set the voltage
-                self.set_voltage(current_point)
-                time.sleep(stabilization_time)
-                
-                all_currents = []              
-                # Measure the mean current
-                for measure in range(n_measurements):
-                    all_currents.append(self.measure_current())
-                    
-                mean_current = np.asarray(all_currents).mean()
-                rms_current = np.asarray(all_currents).std()
-                
-                if self.check_compliance:
-                    # Check compliance and skip to next channel if it tripped
-                    if self.is_compliance():
-                        self.set_voltage(0)
-                        time.sleep(stabilization_time)
-                        break
-                    
-                # Add the data to the plot
-                self.queue.put((sipm, current_point, mean_current, rms_current))
-                print(f"For SiPM {sipm + 1}, Voltage: {current_point}V, Mean Current: {mean_current} A, mean/rms: {mean_current/rms_current})")
-                if not running:
-                    return
-                current_point += voltage_step
-                
-        if do_ramp_down:
+            self.queue.put((sipm, voltage, mean_current, rms_current))
+            print(f"For SiPM {sipm + 1}, Voltage: {voltage}V, Mean Current: {mean_current} A, mean/rms: {mean_current/rms_current}")
+            
+            if not running:
+                return
+        
+        self.disconnect_from_sipm(sipm)
+        if self.ramp_down.isChecked():
             self.do_ramp_down()
     
-        # Emit the cycle_finished signal after each cycle
-        self.disconnect_from_sipm(sipm)
-
     def run(self):
         min_voltage = float(self.min_voltage.text())
         max_voltage = float(self.max_voltage.text())
@@ -280,10 +167,8 @@ class DataAcquisitionThread(QThread):
         self.fine_voltage_scan = self.fine_voltage_scan_box.isChecked()
         self.check_start_voltage = self.check_start_voltage_box.isChecked()
         self.check_compliance = self.check_compliance_box.isChecked()
-        self.do_ramp_down = self.ramp_down.isChecked()
-
-        print("START")
-        self.k2420.write(':SENSE:CURR:PROT  '+ self.compliance.text() +'E-6')
+        
+        self.k2420.write(f':SENSE:CURR:PROT {self.compliance.text()}E-6')
         self.connect_bias()
         
         v_fine_start = float(self.v_fine_start.text())
@@ -291,28 +176,26 @@ class DataAcquisitionThread(QThread):
         v_fine_step = float(self.v_fine_step.text())
 
         if self.check_start_voltage:
-            ramp_step = int(self.ramp_down_step.text())
-            # Check if sourcemeter is at 0V, otherwhise ramp down
-            current_voltage =  float(self.k2420.query('SOUR:VOLT?').split(',')[0])
-            if current_voltage > 0:
-                print('Current voltage is not 0V: ramping down...')
-                while current_voltage > 0:
-                    current_voltage -= ramp_step
-                    if current_voltage < 0:
-                        current_voltage = 0 # Make sure we don't go negative voltages while ramping down
-                    self.k2420.write('SOUR:VOLT ' + str(current_voltage))
-                    time.sleep(1)
-                
+            self.do_ramp_down()
+        
         self.k2420.write('OUTP ON')
         
-        # Loop over all active channels listed in the active_channels list
-        for i in active_channel_list:
-            self.do_IV(i, min_voltage, max_voltage, voltage_step, self.do_ramp_down, self.fine_voltage_scan, v_fine_start, v_fine_end, v_fine_step)
+        if self.fine_voltage_scan:
+            voltage_points = np.concatenate([
+                np.arange(min_voltage, v_fine_start, voltage_step),
+                np.arange(v_fine_start, v_fine_end, v_fine_step),
+                np.arange(v_fine_end, max_voltage + voltage_step, voltage_step)
+            ])
+        else:
+            voltage_points = np.arange(min_voltage, max_voltage + voltage_step, voltage_step)
+
+        for sipm in active_channel_list:
+            self.perform_measurement(sipm, voltage_points)
             if not running:
-                return  # Exit the run method if running flag is set to False
-        
+                return
+
         self.set_voltage(0)
-        self.k2420.write('OUTP OFF')    
+        self.k2420.write('OUTP OFF')
         self.all_finished.emit(0)
 
 class ToggleButton(QPushButton):
@@ -1026,7 +909,10 @@ class MainWindow(QMainWindow):
         print(f"Data for All SiPMs saved as {filename}")
         
         self.stop_run()
-        playsound.playsound('voice.mp3')
+        try:
+            playsound.playsound('voice.mp3')
+        except:
+            print('Could not play sound')
         
     def switch_plot_tab(self, sipm):
         # Switch to the tab corresponding to the current SiPM
