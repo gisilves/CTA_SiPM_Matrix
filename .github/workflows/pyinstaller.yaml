@@ -43,7 +43,7 @@ jobs:
       - name: Create Windows Installer
         uses: AliceOh/CreateWindowsInstaller@1.0.0
         with:
-          executable: cta_matrix_iv.exe
+          exefile: cta_matrix_iv.exe
 
       - name: Create Release
         id: create_release
