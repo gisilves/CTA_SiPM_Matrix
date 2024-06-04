@@ -18,7 +18,7 @@ import numpy as np
 import playsound
 import argparse
 
-from src.gui import ToggleButton, RoundLabel
+from gui import ToggleButton, RoundLabel
 
 
 parser = argparse.ArgumentParser(description='CTA IV Measurement System')
