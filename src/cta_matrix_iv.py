@@ -2,7 +2,7 @@ import sys
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QPushButton, QVBoxLayout, QLabel, QHBoxLayout, QTabWidget, QLineEdit, QCheckBox, QGridLayout, QMessageBox, QInputDialog
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
-from PyQt5.QtGui import QPainter, QColor, QBrush
+from PyQt5.QtGui import QColor
 from qt_ledwidget import LedWidget
 
 import matplotlib.pyplot as plt
@@ -18,6 +18,8 @@ import numpy as np
 import playsound
 import argparse
 
+from src.gui import ToggleButton, RoundLabel
+
 
 parser = argparse.ArgumentParser(description='CTA IV Measurement System')
 parser.add_argument('--debug', action='store_true', help='Start in debug mode')
@@ -30,33 +32,7 @@ show_settings = False
 if args.debug:
     print('Starting in debug mode')
     show_settings = True
-    
-# Map for switching matrix connection: HI, LOW and 16 SIGNALS corresponding to the 16 SiPMs on the board
-connection_map = {
-    "HI": '1E',
-    "LOW": '1F',
-    "BIAS": '1E01',
-    "SIGNAL1": '1F02',
-    "SIGNAL2": '1F03',
-    "SIGNAL3": '1F04',
-    "SIGNAL4": '1F05',
-    "SIGNAL5": '1F06',
-    "SIGNAL6": '1F07',
-    "SIGNAL7": '1F08',
-    "SIGNAL8": '1F09',
-    "SIGNAL9": '1F10',
-    "SIGNAL10": '1F11',
-    "SIGNAL11": '1F12',
-    "SIGNAL12": '2F01',
-    "SIGNAL13": '2F02',
-    "SIGNAL14": '2F03',
-    "SIGNAL15": '2F04',
-    "SIGNAL16": '2F05'
-} 
 
-from PyQt5.QtCore import QThread, pyqtSignal
-import numpy as np
-import time
 
 class DataAcquisitionThread(QThread):
     current_sipm = pyqtSignal(int)  # Signal to indicate current SiPM being measured
@@ -197,67 +173,6 @@ class DataAcquisitionThread(QThread):
         self.set_voltage(0)
         self.k2420.write('OUTP OFF')
         self.all_finished.emit(0)
-
-class ToggleButton(QPushButton):
-    def __init__(self, label='Toggle Me', parent=None):
-        super().__init__(label, parent)
-        self.setCheckable(True)
-        self.setStyleSheet(self.getStyleSheet(True))  # Set initial stylesheet
-
-        # Connect the toggled signal to a slot to update the stylesheet
-        self.toggled.connect(self.updateButtonStyle)
-
-    def getStyleSheet(self, checked):
-        if checked:            
-            return """
-                QPushButton {
-                    background-color: green;
-                    border-style: outset;
-                    border-width: 2px;
-                    border-radius: 10px;
-                    border-color: beige;
-                    font: bold 14px;
-                    min-width: 10em;
-                    padding: 6px;
-                }
-            """
-        else:
-            return """
-                QPushButton {
-                    background-color: gray;
-                    border-style: outset;
-                    border-width: 2px;
-                    border-radius: 10px;
-                    border-color: beige;
-                    font: bold 14px;
-                    min-width: 10em;
-                    padding: 6px;
-                }
-            """
-    def updateButtonStyle(self, checked):
-        # Update the button's stylesheet based on its checked state
-        self.setStyleSheet(self.getStyleSheet(checked))
-        
-        
-class RoundLabel(QLabel):
-    def __init__(self, text='', color=QColor(100,100,255), parent=None):
-        super().__init__(parent)
-        self.text = text
-        self.color = color
-        self.setFixedSize(20, 20)
-        
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        
-        brush = QBrush(self.color)
-        painter.setBrush(brush)
-        painter.drawEllipse(0, 0, self.width(), self.height())
-        painter.end()  
-        
-    def setColor(self, color):
-        self.color = QColor(color)
-        self.update()          
 
 class MainWindow(QMainWindow):    
     def __init__(self):
