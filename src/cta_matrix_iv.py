@@ -19,6 +19,7 @@ import playsound
 import argparse
 
 from gui import ToggleButton, RoundLabel
+import k707
 
 
 parser = argparse.ArgumentParser(description='CTA IV Measurement System')
@@ -578,7 +579,9 @@ class MainWindow(QMainWindow):
         try:
             self.rm = pv.ResourceManager()
             self.k2420 = self.rm.open_resource(self.k2420_address.text()) # Keithley 2420 Sourcemeter    
-            self.k707 = self.rm.open_resource(self.k707_address.text()) # Keithley 707 Switch Matrix
+
+            # Connect to k707 switch matrix
+            self.k707 = k707.k707(self.k707_address.text()) # Keithley 707 Switch Matrix
 
             self.data_thread = DataAcquisitionThread(min_voltage=self.min_voltage, 
                                                     max_voltage=self.max_voltage, 
