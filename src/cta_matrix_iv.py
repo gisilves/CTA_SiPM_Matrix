@@ -456,7 +456,7 @@ class MainWindow(QMainWindow):
 
         self.target_current_before_bkd_label = QLabel("Max current before breakdown (nA):")
         self.target_current_before_bkd = QLineEdit()
-        self.target_current_before_bkd.setText("25.0")
+        self.target_current_before_bkd.setText("100.0")
         self.settings2_layout.addWidget(self.target_current_before_bkd_label, row, col)
         col += 1
         self.settings2_layout.addWidget(self.target_current_before_bkd, row, col)
