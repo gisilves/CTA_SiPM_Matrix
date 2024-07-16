@@ -1,7 +1,10 @@
 name: Package Application with Pyinstaller
 
 on:
-  workflow_dispatch
+  push:
+    branches: 
+      - pyinstaller_tests
+      - main
 
 jobs:
   build:
