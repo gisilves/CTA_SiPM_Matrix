@@ -4,6 +4,7 @@ on:
   push:
     branches: 
       - pyinstaller_tests
+      - master
 
 jobs:
   build:
