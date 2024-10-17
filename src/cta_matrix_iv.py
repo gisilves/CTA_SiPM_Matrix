@@ -857,13 +857,19 @@ class MainWindow(QMainWindow):
             if current_before_bkd < target_i_before and target_i_after_low <= current_after_bkd <= target_i_after_high:
                 # Set status label to the correct color
                 label_idx = 2 * self.channel_mappings.index(sipm + 1) + 1
-                self.grid_layout.itemAt(label_idx).widget().setColor('#90EE90')
+                self.grid_layout.itemAt(label_idx).widget().setColor('#99ff99')
                 print('SiPM looks OK')
+            elif current_before_bkd > target_i_before and target_i_after_low <= current_after_bkd <= target_i_after_high:
+                # Set status label to the correct color
+                label_idx = 2 * self.channel_mappings.index(sipm + 1) + 1
+                self.grid_layout.itemAt(label_idx).widget().setColor('#ffff33')
+                print('SiPM is MARGINAL')
             else:
                 # Set status label to the correct color
                 label_idx = 2 * self.channel_mappings.index(sipm + 1) + 1
-                self.grid_layout.itemAt(label_idx).widget().setColor('#FF6347')
+                self.grid_layout.itemAt(label_idx).widget().setColor('#cc3300')
                 print('SiPM looks NOT OK')
+            
             
             x.clear()
             y.clear()
